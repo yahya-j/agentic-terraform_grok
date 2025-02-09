@@ -54,7 +54,7 @@
   3. Install dependecies using `pipenv`
 
       ```shell
-      pipenv install
+      pipenv install --dev
       ```
 
 ## Usage
