@@ -113,4 +113,4 @@ The retry mechanism utilises `terraform validate -json` to verify IaC syntax and
 ## Licence
 
 Licensed under the [Mozilla Public License 2.0 (MPL-2.0)](https://www.mozilla.org/en-US/MPL/2.0/).
-See [LICENCE](LICENCE.md) for details and [legal TL;DR](https://www.tldrlegal.com/license/mozilla-public-license-2-0-mpl-2).
+See [LICENCE](LICENSE.md) for details and [legal TL;DR](https://www.tldrlegal.com/license/mozilla-public-license-2-0-mpl-2).
