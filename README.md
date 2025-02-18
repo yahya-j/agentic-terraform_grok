@@ -1,110 +1,116 @@
-# Agentic Infrastructure-as-Code
+<!--
+SPDX-License-Identifier: MPL-2.0
+-->
 
-  This repository contains an implementation of a workflow to enhance LLM-generated Infrastructure-as-Code (IaC) using [few-shot prompting](https://en.wikipedia.org/wiki/Prompt_engineering#In-context_learning), [pseudo-RAG](https://en.wikipedia.org/wiki/Retrieval-augmented_generation), and retry mechanism.
+# Agentic Terraform
 
-## Directory Structure
+This repository implements an intelligent workflow that enhances LLM-generated Infrastructure-as-Code (IaC) using:
 
-  ```shell
-  ┌── pipeline.py            # Pipeline that integrates all steps below
-  ├── steps.py               # Steps in the pipeline
-  ├── results/initial.txt    # LLM output without any augmentation
-  ├── results/pipelined.txt  # LLM output obtained using the pipeline
-  └── Pipefile[.lock]        # Application dependencies (managed using pipenv)
-  └── environment.yml        # Environment dependencies (managed using Conda/Mamba)
-  ```
+- [Few-shot prompting](https://en.wikipedia.org/wiki/Prompt_engineering#In-context_learning)
+- [Pseudo-RAG](https://en.wikipedia.org/wiki/Retrieval-augmented_generation)
+- Automated validation and retry mechanisms
 
-## Component
+## Components
 
-### 1. `FewShot` class (`steps.py`)
+### 1. Pipeline (`pipeline.py`)
+Orchestrates the workflow by integrating all steps below.
 
-  This module demonstrates how to use few-shot examples to guide the LLM in generating accurate IaC.
+### 2. Steps (`steps.py`)
+Contains the core processing modules:
 
-### 2. `PseudoRAG` (`steps.py`)
+- **FewShot**: Uses curated examples to guide the LLM in generating accurate IaC
+- **PseudoRAG**: Generates appropriate `Terraform` provider clauses using [tf-idf](https://en.wikipedia.org/wiki/Tf%E2%80%93idf) classification
+- **TerraformValidator**: Validates generated IaC and implements retry logic for incomplete/invalid outputs
 
-  This module generates an appropriate `Terraform` provider clause based on user prompt.
-  [tf–idf](https://en.wikipedia.org/wiki/Tf%E2%80%93idf) method is used for classififing the prompt.
-  The generated cluase is prefilled onto `messages`.
-
-### 3. `TerraformValidator` (`steps.py`)
-
-  This module validates the generated IaC and retries if the output is incomplete or invalid.
-
-## Installation
+## Getting Started
 
 ### Prerequisites
+- Python 3.12 or newer
+- Terraform CLI (must be in system PATH)
 
-  - Python 3.12
-  - Terraform CLI installed and added to PATH
+### Installation
 
-### Steps
+1. Clone the repository:
+   ```shell
+   git clone https://github.com/paaloeye/agentic-terraform.git
+   cd agentic-terraform
+   ```
 
-  1. Clone the repository:
+2. Set up the environment:
+   ```shell
+   # Using micromamba (recommended)
+   micromamba create -f environment.yml
+   micromamba activate agentic-terraform
 
-      ```shell
-      git clone https://github.com/pbrit/iac-agentic.git
-      ```
+   # Install development dependencies
+   pipenv install --dev
+   ```
 
-  2. Create a fresh environment using `conda` or `mamba` from `envrionment.yml`
+### Usage
 
-      ```shell
-      micromamba create -f environment.yml
-      micromamba activate iac-agentic
-      ```
+1. Set your API key:
+   ```shell
+   export ANTHROPIC_API_KEY=<your-key-here>
+   ```
 
-  3. Install dependecies using `pipenv`
+2. Run the example:
+   ```shell
+   pipenv shell
+   python ./main.py
+   ```
 
-      ```shell
-      pipenv install --dev
-      ```
+## Example Implementation
 
-## Usage
+```python
+import anthropic
+from pipeline import Pipeline
+from steps import FewShot, LLMClient, PseudoRAG, TerraformValidator, UserPrompt
 
-  ```shell
-  # Drop into virtualenv
-  pipenv shell
+def main():
+    # Configure the pipeline
+    model_name = "claude-3-5-haiku-latest"
+    llm_client = anthropic.Anthropic()
 
-  export ANTHROPIC_API_KEY=<REPLACE WITH ANTHROPIC_API_KEY>
-  python ./main.py
-  ```
+    # Define infrastructure requirements
+    prompt = """
+    Deploy 3 VMs with:
+    - 16+ CPUs each
+    - 64GB RAM each
+    - Distributed across 3 availability zones
+    - Located in the Netherlands
+    - Using Azure as provider
+    """
 
-## Example
+    # Set up pipeline steps
+    steps = [
+        FewShot(),
+        UserPrompt(),
+        PseudoRAG(),
+        LLMClient(llm_client, model_name),
+        TerraformValidator(),
+    ]
 
-  ```python
-  import anthropic
-  from pipeline import Pipeline
-  from steps import FewShot, LLMClient, PseudoRAG, TerraformValidator, UserPrompt
+    # Execute and get results
+    pipeline = Pipeline(steps)
+    result = pipeline.run(prompt)
+    print(result)
 
-  model_name = "claude-3-5-haiku-latest"
+if __name__ == "__main__":
+    main()
+```
 
-  llm_client = anthropic.Anthropic()
+## Development
 
-  user_prompt = "Deploy 3 VMs with at least 16 CPUs and 64GB across in 3 availability zones in the Netherlands using Azure"
+### Validation Process
+The retry mechanism utilises `terraform validate -json` to verify IaC syntax and structure.
 
-  steps = [
-      FewShot(),
-      UserPrompt(),
-      PseudoRAG(),
-      LLMClient(llm_client, model_name),
-      TerraformValidator(),
-  ]
+### Contributing
+1. Fork the repository
+2. Install pre-commit hooks: `pre-commit install`
+3. Create a feature branch
+4. Submit a pull request with detailed description
 
-  pipeline = Pipeline(steps)
-  result = pipeline.run(user_prompt)
+## Licence
 
-  print(result)
-  ```
-
-## Validating Terraform Syntax
-
-  The retry mechanism uses `terraform validate -json` to check the IaC syntax.
-
-## Contributing
-
-  1. Fork the repository.
-  2. Run `pre-commit install`
-  3. Create a new branch for your feature or bugfix.
-  4. Submit a pull request with a detailed description of your changes.
-
-## License
-
-  This repository is licensed under the MIT License. See `LICENSE` for details.
+Licensed under the [Mozilla Public License 2.0 (MPL-2.0)](https://www.mozilla.org/en-US/MPL/2.0/).
+See [LICENCE](LICENCE.md) for details and [legal TL;DR](https://www.tldrlegal.com/license/mozilla-public-license-2-0-mpl-2).

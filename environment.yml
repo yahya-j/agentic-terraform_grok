@@ -1,4 +1,4 @@
-name: iac-agentic
+name: agentic-terraform
 
 channels:
   - conda-forge
