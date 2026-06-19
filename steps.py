@@ -197,12 +197,14 @@ class LLMClient:
         self.model_name = model_name
 
     def get_messages(self, messages, _, meta):
-        completion = self.llm_client.messages.create(
-            max_tokens=1024, model=self.model_name, messages=messages
+        completion = self.llm_client.chat.completions.create(
+            max_tokens=1024, 
+            model=self.model_name, 
+            messages=messages
         )
 
         return (
-            messages + [{"role": "assistant", "content": completion.content[0].text}],
+            messages + [{"role": "assistant", "content": completion.choices[0].message.content}],
             False,
             meta,
         )
