@@ -8,7 +8,7 @@
 # import anthropic
 import groq
 from pipeline import Pipeline
-from steps import FewShot, LLMClient, PseudoRAG, TerraformValidator, UserPrompt
+from steps import FewShot, LLMClient, PseudoRAG, TerraformValidator, UserPrompt, SecurityValidator
 
 # Ref: https://docs.anthropic.com/en/docs/about-claude/models
 # model_name = "claude-3-5-haiku-latest"
@@ -24,6 +24,7 @@ steps = [
     UserPrompt(),
     PseudoRAG(),
     LLMClient(llm_client, model_name),
+    SecurityValidator(),
     TerraformValidator(),
 ]
 
