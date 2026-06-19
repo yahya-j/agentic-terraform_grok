@@ -9,6 +9,7 @@ import json
 import os
 import subprocess
 import tempfile
+import re
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -25,6 +26,65 @@ def results(messages):
 
     return "".join(result)
 
+class SecurityValidator:
+    # Chaque règle : (nom, regex, message d'erreur à renvoyer au LLM)
+    RULES = [
+        (
+            "hardcoded_password",
+            re.compile(r'admin_password\s*=\s*"[^"]+"'),
+            'Do not hardcode "admin_password" in plain text. Remove the admin_password '
+            'argument and instead use SSH key authentication via "admin_ssh_key" block, '
+            'with disable_password_authentication = true.',
+        ),
+        (
+            "password_auth_enabled",
+            re.compile(r'disable_password_authentication\s*=\s*false'),
+            'Set disable_password_authentication = true to enforce SSH key-only '
+            'authentication instead of password authentication.',
+        ),
+        (
+            "open_ssh_to_internet",
+            re.compile(
+                r'source_address_prefix\s*=\s*"\*"|source_address_prefix\s*=\s*"0\.0\.0\.0/0"'
+            ),
+            'Do not allow inbound traffic from "*" or "0.0.0.0/0". Restrict '
+            'source_address_prefix to a specific known IP range.',
+        ),
+        (
+            "hardcoded_secret_generic",
+            re.compile(r'(secret|api_key|token)\s*=\s*"[^"]{8,}"', re.IGNORECASE),
+            'Do not hardcode secrets, API keys, or tokens in plain text. Use a '
+            'variable with sensitive = true, or reference a secrets manager.',
+        ),
+    ]
+
+    def get_messages(self, messages, _, meta):
+        if not meta.get("AlreadyRun"):
+            meta["AlreadyRun"] = True
+            meta["RetryCount"] = 0
+
+        if meta["RetryCount"] >= 5:
+            print("[SecurityValidator] Nombre max de retries atteint. Abandon.")
+            exit(1)
+
+        iac_result = results(messages)
+
+        violations = []
+        for rule_name, pattern, fix_instruction in self.RULES:
+            if pattern.search(iac_result):
+                violations.append(f"- [{rule_name}] {fix_instruction}")
+
+        if not violations:
+            print("[SecurityValidator] Aucun problème de sécurité détecté.")
+            return messages, False, meta
+
+        error = (
+            "The generated Terraform code has security issues that must be fixed:\n"
+            + "\n".join(violations)
+        )
+        print(f"[SecurityValidator] Problèmes détectés :\n{error}")
+        meta["RetryCount"] += 1
+        return messages + [{"role": "user", "content": error}], True, meta
 
 class TerraformValidator:
     def get_messages(self, messages, _, meta):
