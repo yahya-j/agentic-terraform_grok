@@ -224,6 +224,42 @@ class FewShot:
             }
             """,
         },
+        {
+            "role": "user",
+            "content": "Create an Ubuntu VM on Azure with SSH key authentication, no password.",
+        },
+        {
+            "role": "assistant",
+            "content": (
+                'resource "tls_private_key" "example" {\n'
+                '  algorithm = "RSA"\n'
+                '  rsa_bits  = 4096\n'
+                '}\n\n'
+                'resource "azurerm_linux_virtual_machine" "example" {\n'
+                '  name                = "example-vm"\n'
+                '  resource_group_name = azurerm_resource_group.example.name\n'
+                '  location            = azurerm_resource_group.example.location\n'
+                '  size                = "Standard_DS1_v2"\n'
+                '  admin_username      = "adminuser"\n'
+                '  network_interface_ids = [azurerm_network_interface.example.id]\n\n'
+                '  disable_password_authentication = true\n\n'
+                '  admin_ssh_key {\n'
+                '    username   = "adminuser"\n'
+                '    public_key = tls_private_key.example.public_key_openssh\n'
+                '  }\n\n'
+                '  os_disk {\n'
+                '    caching              = "ReadWrite"\n'
+                '    storage_account_type = "Standard_LRS"\n'
+                '  }\n\n'
+                '  source_image_reference {\n'
+                '    publisher = "Canonical"\n'
+                '    offer     = "0001-com-ubuntu-server-jammy"\n'
+                '    sku       = "22_04-lts"\n'
+                '    version   = "latest"\n'
+                '  }\n'
+                '}'
+            ),
+        },
     ]
 
     def get_messages(self, messages, _, meta):
@@ -255,7 +291,16 @@ class LLMClient:
         completion = self.llm_client.chat.completions.create(
             max_tokens=1024, 
             model=self.model_name, 
-            messages=messages
+            messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a Terraform code generator. Respond with raw HCL code only. "
+                    "Never include markdown formatting, explanations, comments about your "
+                    "changes, or notes. Output only valid .tf file content."
+                )
+            }
+        ] + messages,
         )
 
         return (
