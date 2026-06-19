@@ -58,6 +58,20 @@ class SecurityValidator:
         ),
     ]
 
+    def _check_vm_has_auth(self, code):
+    vm_blocks = re.findall(
+        r'resource\s+"azurerm_linux_virtual_machine"\s+"[^"]+"\s*\{(.+?)\n\}',
+        code, re.DOTALL
+    )
+    issues = []
+    for block in vm_blocks:
+        if "admin_ssh_key" not in block and "admin_password" not in block:
+            issues.append(
+                "A VM resource is missing authentication: add an "
+                '"admin_ssh_key" block (preferred) or "admin_password".'
+            )
+    return issues
+    
     def get_messages(self, messages, _, meta):
         if not meta.get("AlreadyRun"):
             meta["AlreadyRun"] = True
@@ -73,6 +87,11 @@ class SecurityValidator:
         for rule_name, pattern, fix_instruction in self.RULES:
             if pattern.search(iac_result):
                 violations.append(f"- [{rule_name}] {fix_instruction}")
+       
+        # ↓↓↓ NOUVEAU ↓↓↓
+        auth_issues = self._check_vm_has_auth(iac_result)
+        violations.extend(f"- [missing_authentication] {issue}" for issue in auth_issues)
+        # ↑↑↑ NOUVEAU ↑↑↑
 
         if not violations:
             print("[SecurityValidator] Aucun problème de sécurité détecté.")
