@@ -32,53 +32,48 @@ class TerraformValidator:
             meta["AlreadyRun"] = True
             meta["RetryCount"] = 0
 
+        print(f"[TerraformValidator] Tentative {meta['RetryCount'] + 1}/6")
+
         if meta["RetryCount"] >= 5:
-            print("Bail")
+            print("[TerraformValidator] Nombre max de retries atteint. Abandon.")
             exit(1)
 
         iac_result = results(messages)
 
         with tempfile.TemporaryDirectory() as tmp_dir:
-            with open(os.path.join(tmp_dir, "llm_iac.tf"), "w") as iac_file:
-                iac_file.write(iac_result)
+            with open(os.path.join(tmp_dir, "llm_iac.tf"), "w") as f:
+                f.write(iac_result)
 
-            try:
-                subprocess.run(
-                    ["terraform", "init"],
-                    cwd=tmp_dir,
-                    check=True,
-                )
+            init_handle = subprocess.run(
+                ["terraform", "init"],
+                cwd=tmp_dir,
+                capture_output=True,
+                text=True,
+            )
 
-                tf_handle = subprocess.run(
-                    ["terraform", "validate", "-json"],
-                    cwd=tmp_dir,
-                    capture_output=True,
-                    check=False,
-                    text=True,
-                )
-
-                tf_json_status = json.loads(tf_handle.stdout)
-
-                if tf_json_status["valid"]:
-                    return messages, False, meta
-
-                tf_error_diagnostics = tf_json_status["diagnostics"][0]["detail"]
-                tf_retry_prompot = f"{tf_error_diagnostics}"
-
+            if init_handle.returncode != 0:
+                error = init_handle.stderr or init_handle.stdout
+                print(f"[TerraformValidator] terraform init a échoué :\n{error}")
                 meta["RetryCount"] += 1
+                return messages + [{"role": "user", "content": error}], True, meta
 
-                return (
-                    messages + [{"role": "user", "content": tf_retry_prompot}],
-                    True,
-                    meta,
-                )
+            tf_handle = subprocess.run(
+                ["terraform", "validate", "-json"],
+                cwd=tmp_dir,
+                capture_output=True,
+                text=True,
+            )
+            tf_json = json.loads(tf_handle.stdout)
 
-            except subprocess.CalledProcessError as e:
-                print("Terraform init failed", e)
-            except json.JSONDecodeError as e:
-                print("Malformed JSON", e)
+            if tf_json["valid"]:
+                print("[TerraformValidator] Code Terraform valide !")
+                return messages, False, meta
 
-
+            error = tf_json["diagnostics"][0]["detail"]
+            print(f"[TerraformValidator] terraform validate a échoué :\n{error}")
+            meta["RetryCount"] += 1
+            return messages + [{"role": "user", "content": error}], True, meta
+            
 class PseudoRAG:
     terraform_providers = {
         "azure": {
