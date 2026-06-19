@@ -32,25 +32,36 @@ Contains the core processing modules:
 
 1. Clone the repository:
    ```shell
-   git clone https://github.com/paaloeye/agentic-terraform.git
-   cd agentic-terraform
+   git clone https://github.com/yahya-j/agentic-terraform_groq.git
+   cd agentic-terraform_groq
    ```
 
 2. Set up the environment:
-   ```shell
+    ```shell
    # Using micromamba (recommended)
    micromamba create -f environment.yml
-   micromamba activate agentic-terraform
+   micromamba activate agentic-terraform_groq
 
    # Install development dependencies
    pipenv install --dev
+   
+   # Using python venv
+   python3 -m venv venv
+   source venv/bin/activate
+   which python     
+   pip install --upgrade pip
+   pip install groq scikit-learn
+
    ```
 
 ### Usage
 
 1. Set your API key:
    ```shell
-   export ANTHROPIC_API_KEY=<your-key-here>
+   export GROQ_API_KEY=gsk_................
+   echo 'export GROQ_API_KEY=gsk_.....' >> ~/.bashrc
+   pip install --upgrade pip
+   pip install groq scikit-learn
    ```
 
 2. Run the example:
@@ -62,14 +73,14 @@ Contains the core processing modules:
 ## Example Implementation
 
 ```python
-import anthropic
+import groq
 from pipeline import Pipeline
 from steps import FewShot, LLMClient, PseudoRAG, TerraformValidator, UserPrompt
 
 def main():
     # Configure the pipeline
-    model_name = "claude-3-5-haiku-latest"
-    llm_client = anthropic.Anthropic()
+    model_name = "llama-3.3-70b-versatile"
+    llm_client = groq.Groq()   # lit GROQ_API_KEY depuis l'env automatiquement
 
     # Define infrastructure requirements
     prompt = """
