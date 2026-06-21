@@ -58,19 +58,35 @@ class SecurityValidator:
         ),
     ]
 
+    def _extract_vm_blocks(self, code):
+    """Extrait le contenu de chaque bloc azurerm_linux_virtual_machine
+    en comptant les accolades, pour gérer correctement les blocs imbriqués."""
+    blocks = []
+    pattern = re.compile(r'resource\s+"azurerm_linux_virtual_machine"\s+"[^"]+"\s*\{')
+
+    for match in pattern.finditer(code):
+        start = match.end()  # juste après l'accolade ouvrante
+        depth = 1
+        i = start
+        while i < len(code) and depth > 0:
+            if code[i] == "{":
+                depth += 1
+            elif code[i] == "}":
+                depth -= 1
+            i += 1
+        blocks.append(code[start:i - 1])  # contenu entre les accolades
+
+    return blocks
+
     def _check_vm_has_auth(self, code):
-    vm_blocks = re.findall(
-        r'resource\s+"azurerm_linux_virtual_machine"\s+"[^"]+"\s*\{(.+?)\n\}',
-        code, re.DOTALL
-    )
-    issues = []
-    for block in vm_blocks:
-        if "admin_ssh_key" not in block and "admin_password" not in block:
-            issues.append(
-                "A VM resource is missing authentication: add an "
-                '"admin_ssh_key" block (preferred) or "admin_password".'
-            )
-    return issues
+        issues = []
+        for block in self._extract_vm_blocks(code):
+            if "admin_ssh_key" not in block and "admin_password" not in block:
+                issues.append(
+                    "A VM resource is missing authentication: add an "
+                    '"admin_ssh_key" block (preferred) or "admin_password".'
+                )
+        return issues
     
     def get_messages(self, messages, _, meta):
         if not meta.get("AlreadyRun"):
