@@ -93,22 +93,22 @@ class SecurityValidator:
             meta["AlreadyRun"] = True
             meta["RetryCount"] = 0
 
+        iac_result = results(messages)
+
         if meta["RetryCount"] >= 5:
             print("[SecurityValidator] Nombre max de retries atteint. Abandon.")
+            print("=== Dernier code généré ===")
+            print(iac_result)
             exit(1)
-
-        iac_result = results(messages)
 
         violations = []
         for rule_name, pattern, fix_instruction in self.RULES:
             if pattern.search(iac_result):
                 violations.append(f"- [{rule_name}] {fix_instruction}")
        
-        # ↓↓↓ NOUVEAU ↓↓↓
         auth_issues = self._check_vm_has_auth(iac_result)
         violations.extend(f"- [missing_authentication] {issue}" for issue in auth_issues)
-        # ↑↑↑ NOUVEAU ↑↑↑
-
+        
         if not violations:
             print("[SecurityValidator] Aucun problème de sécurité détecté.")
             return messages, False, meta
@@ -131,6 +131,8 @@ class TerraformValidator:
 
         if meta["RetryCount"] >= 5:
             print("[TerraformValidator] Nombre max de retries atteint. Abandon.")
+            print("=== Dernier code généré ===")
+            print(results(messages))
             exit(1)
 
         iac_result = results(messages)
